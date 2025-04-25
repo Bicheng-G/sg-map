@@ -1,2 +1,2 @@
-public/data/singapore/singapore_roads.json filter=lfs diff=lfs merge=lfs -text
 data/singapore/singapore_roads.json filter=lfs diff=lfs merge=lfs -text
+public/data/singapore/singapore_roads.json filter=lfs diff=lfs merge=lfs -text
