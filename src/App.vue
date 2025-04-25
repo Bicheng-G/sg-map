@@ -1,5 +1,4 @@
 <template>
-  <load-singapore v-if='!placeFound' @loaded='onGridLoaded'></load-singapore>
   <div id="app">
     <div v-if='placeFound'>
       <div class='controls'>
@@ -74,7 +73,6 @@
 </template>
 
 <script>
-import LoadSingapore from './components/LoadSingapore.vue';
 import LoadingIcon from './components/LoadingIcon.vue';
 import EditableLabel from './components/EditableLabel.vue';
 import ColorPicker from './components/ColorPicker.vue';
@@ -88,6 +86,9 @@ import './lib/canvas2BlobPolyfill.js';
 import bus from './lib/bus.js';
 import createOverlayManager from './createOverlayManager.js';
 import tinycolor from 'tinycolor2';
+import Grid from './lib/Grid.js';
+import BoundingBox from './lib/BoundingBox.js';
+import {geoMercator} from 'd3-geo';
 
 class ColorLayer {
   constructor(name, color, callback) {
@@ -100,7 +101,6 @@ class ColorLayer {
 export default {
   name: 'App',
   components: {
-    LoadSingapore,
     LoadingIcon,
     EditableLabel,
     ColorPicker
@@ -115,7 +115,8 @@ export default {
       settingsOpen: false,
       labelColor: config.getLabelColor().toRgb(),
       backgroundColor: config.getBackgroundColor().toRgb(),
-      layers: []
+      layers: [],
+      loadError: null
     }
   },
   computed: {
@@ -128,6 +129,7 @@ export default {
     bus.on('background-color', this.syncBackground);
     bus.on('line-color', this.syncLineColor);
     this.overlayManager = createOverlayManager();
+    this.loadSingaporeData();
   },
   beforeUnmount() {
     debugger;
@@ -150,7 +152,75 @@ export default {
     handleSceneTransform() {
       this.zazzleLink = null;
     },
+    loadSingaporeData() {
+      console.log('Starting to load Singapore data...');
+      fetch('/data/singapore/singapore_roads.json')
+        .then(response => {
+          console.log('Response status:', response.status);
+          if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+          }
+          return response.json();
+        })
+        .then(data => {
+          console.log('Data loaded, processing grid...');
+          const grid = new Grid();
+          grid.name = 'Singapore';
+          grid.id = 3617140517; // Singapore's area ID
+          grid.isArea = true;
+
+          if (data.elements) {
+            console.log('Processing elements:', data.elements.length);
+            const nodes = new Map();
+            data.elements.forEach(element => {
+              if (element.type === 'node') {
+                nodes.set(element.id, element);
+              }
+            });
+            grid.nodes = nodes;
+
+            const bounds = new BoundingBox();
+            nodes.forEach(node => {
+              bounds.addPoint(node.lon, node.lat);
+            });
+            grid.bounds = bounds;
+            console.log('Bounds calculated:', bounds);
+
+            const projector = geoMercator()
+              .center([bounds.cx, bounds.cy])
+              // Scale might need adjustment depending on the exact map library/usage
+              .scale(200000) // Adjusted scale, original was very large
+              .translate([0, 0]); // Center translation if needed later
+            grid.projector = projector;
+
+            let wayPointCount = 0;
+            const ways = [];
+            data.elements.forEach(element => {
+              if (element.type === 'way' && element.tags && element.tags.highway) {
+                ways.push(element);
+                wayPointCount += element.nodes.length;
+              }
+            });
+            grid.wayPointCount = wayPointCount;
+            grid.elements = ways;
+
+            console.log('Processed ways:', ways.length);
+            console.log('Total way points:', wayPointCount);
+            this.onGridLoaded(grid); // Call the existing method to handle the loaded grid
+          } else {
+            throw new Error('No elements found in the data');
+          }
+        })
+        .catch(error => {
+          console.error('Error loading Singapore data:', error);
+          this.loadError = `Error loading data: ${error.message}`;
+          // Handle the error appropriately, maybe show a message to the user
+          // For now, just setting placeFound to false (or keeping it false)
+          this.placeFound = false;
+        });
+    },
     onGridLoaded(grid) {
+      console.log('Grid loaded, initializing scene...');
       if (grid.isArea) {
         appState.set('areaId', grid.id);
         appState.unset('osm_id');
