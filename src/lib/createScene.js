@@ -183,6 +183,12 @@ export default function createScene(canvas) {
       // TODO: Should I do this for other layers?
       let viewBox = gridLayer.getViewBox();
       if (viewBox) {
+        // Apply 150% zoom by reducing the viewBox dimensions
+        const zoomFactor = 1.5;
+        viewBox.left /= zoomFactor;
+        viewBox.right /= zoomFactor;
+        viewBox.top /= zoomFactor;
+        viewBox.bottom /= zoomFactor;
         scene.setViewBox(viewBox);
       }
     }
