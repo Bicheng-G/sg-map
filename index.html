@@ -48,11 +48,13 @@
         left: 0;
         right: 0;
       }
-    </style>
+      /* Keep this for hiding scrollbars during load */
+      body.loading-active {
+        overflow: hidden;
+      }
 
-    <style>
-      /* Loader Styles */
-      #loader-container {
+      /* Styles for Lottie Container */
+      #lottie-container {
         position: fixed;
         top: 0;
         left: 0;
@@ -60,46 +62,43 @@
         height: 100%;
         background-color: #F7F2E8; /* Match body background */
         display: flex;
-        flex-direction: column;
         justify-content: center;
         align-items: center;
         z-index: 9999; /* Ensure it's on top */
         transition: opacity 0.5s ease-out;
+        opacity: 1; /* Start visible */
       }
 
-      .spinner {
-        border: 8px solid rgba(0, 0, 0, 0.1);
-        border-left-color: #4CAF50; /* Green spinner */
-        border-radius: 50%;
-        width: 60px;
-        height: 60px;
-        animation: spin 1s linear infinite;
+      #lottie-container.hidden {
+        opacity: 0;
+        pointer-events: none; /* Prevent interaction when hidden */
       }
 
-      #loading-percentage {
-        margin-top: 20px;
-        font-size: 1.5em;
-        color: #333;
+      #dotlottie-canvas {
+        width: 300px; /* As per your instructions */
+        height: 300px; /* As per your instructions */
       }
+    </style>
 
-      @keyframes spin {
-        to {
-          transform: rotate(360deg);
-        }
-      }
-
-      /* Hide scrollbars while loader is active */
-      body.loading-active {
-        overflow: hidden;
-      }
+    <style>
+      /* Loader Styles - REMOVED */
+      /* #loader-container { ... } */
+      /* .spinner { ... } */
+      /* #loading-percentage { ... } */
+      /* @keyframes spin { ... } */
+      /* body.loading-active { ... } - MOVED */
     </style>
 
   </head>
   <body>
-    <div id="loader-container">
-      <div class="spinner"></div>
-      <div id="loading-percentage">0%</div>
+    <!-- REMOVED old loader container -->
+    <!-- <div id="loader-container"> ... </div> -->
+
+    <!-- ADDED Lottie container and canvas -->
+    <div id="lottie-container">
+        <canvas id="dotlottie-canvas"></canvas>
     </div>
+
     <canvas id='canvas'></canvas>
     <div id="host"></div>
 

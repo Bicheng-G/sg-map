@@ -1,15 +1,27 @@
+import { DotLottie } from '@lottiefiles/dotlottie-web';
+
 export function initLoadingAnimation() {
-  const loaderContainer = document.getElementById('loader-container');
-  const percentageElement = document.getElementById('loading-percentage');
+  const lottieContainer = document.getElementById('lottie-container');
+  // const percentageElement = document.getElementById('loading-percentage'); // REMOVED
   const body = document.body;
 
-  if (!loaderContainer || !percentageElement) {
-    console.error('Loader elements not found!');
+  if (!lottieContainer) {
+    console.error('Lottie container element not found!');
     return;
   }
 
   body.classList.add('loading-active'); // Prevent scrolling
 
+  // Initialize DotLottie
+  const dotLottie = new DotLottie({
+    autoplay: true,
+    loop: true,
+    canvas: document.querySelector('#dotlottie-canvas'),
+    src: "https://lottie.host/55d90ab4-ae7a-48a8-bff4-766d7d8a6ce8/ICo05qojEc.lottie",
+  });
+
+  // REMOVED Percentage simulation logic
+  /*
   let currentPercentage = 0;
   const targetPercentage = 100;
   const simulationDuration = 2000; // 2 seconds for simulation
@@ -27,24 +39,33 @@ export function initLoadingAnimation() {
       setTimeout(finishLoading, intervalTime + 50); 
     }
   }, intervalTime);
+  */
 
   function finishLoading() {
-    // Start fade out
-    loaderContainer.style.opacity = '0';
+    // Hide the Lottie container by adding the 'hidden' class
+    lottieContainer.classList.add('hidden');
 
-    // Wait for fade out transition to complete before removing
-    loaderContainer.addEventListener('transitionend', () => {
-      if (loaderContainer.parentNode) {
-          loaderContainer.parentNode.removeChild(loaderContainer);
+    // Optional: Clean up Lottie instance after transition
+    lottieContainer.addEventListener('transitionend', () => {
+      // You might want to destroy the Lottie instance if needed
+      // dotLottie.destroy(); 
+      if (lottieContainer.parentNode) {
+          // Optionally remove the container entirely, or just keep it hidden
+          // lottieContainer.parentNode.removeChild(lottieContainer);
       }
       body.classList.remove('loading-active'); // Re-enable scrolling
     }, { once: true }); // Ensure the event listener runs only once
   }
 
-  // As a fallback, ensure loading finishes even if simulation is interrupted
-  // or takes longer than expected, attaching to window.onload
-  // Note: This might hide the loader earlier or later than the simulation
-  // depending on actual page load time. Adjust logic if needed.
+  // Use window.onload to determine when main content is ready
+  // This should cover download/render time better than the simulation
+  window.addEventListener('load', () => {
+    // Ensure finishLoading is called when the page (including scripts/data) is loaded
+    finishLoading();
+  });
+
+  // REMOVED Fallback logic tied to simulation
+  /*
   window.addEventListener('load', () => {
       // If the simulation hasn't finished yet, force it
       if (currentPercentage < targetPercentage) {
@@ -54,4 +75,5 @@ export function initLoadingAnimation() {
           setTimeout(finishLoading, 100); 
       }
   });
+  */
 } 
