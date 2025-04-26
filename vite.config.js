@@ -22,6 +22,20 @@ export default defineConfig({
   publicDir: 'public',
   build: {
     outDir: 'dist',
-    assetsDir: 'assets'
+    assetsDir: 'assets',
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes('node_modules/@lottiefiles/dotlottie-web')) {
+            return 'dotlottie';
+          }
+          // You could add more rules here for other large dependencies if needed
+          // e.g., for w-gl or vue core, though often kept in the main chunk
+          // if (id.includes('node_modules/w-gl')) {
+          //   return 'w-gl';
+          // }
+        }
+      }
+    }
   }
 })
