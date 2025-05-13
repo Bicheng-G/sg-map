@@ -108,7 +108,7 @@ export default {
   data() {
     return {
       placeFound: false,
-      name: '',
+      name: 'Singapore',
       zazzleLink: null,
       generatingPreview: false,
       showSettings: false,
@@ -116,7 +116,8 @@ export default {
       labelColor: config.getLabelColor().toRgb(),
       backgroundColor: config.getBackgroundColor().toRgb(),
       layers: [],
-      loadError: null
+      loadError: null,
+      dataWorker: null
     }
   },
   computed: {
@@ -132,12 +133,14 @@ export default {
     this.loadSingaporeData();
   },
   beforeUnmount() {
-    debugger;
     this.overlayManager.dispose();
     this.dispose();
     bus.off('scene-transform', this.handleSceneTransform);
     bus.off('background-color', this.syncBackground);
     bus.off('line-color', this.syncLineColor);
+    if (this.dataWorker) {
+      this.dataWorker.terminate();
+    }
   },
   methods: {
     dispose() {
@@ -153,85 +156,79 @@ export default {
       this.zazzleLink = null;
     },
     loadSingaporeData() {
-      console.log('Starting to load Singapore data...');
-      fetch('/data/singapore/singapore_roads.json')
-        .then(response => {
-          console.log('Response status:', response.status);
-          if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-          }
-          return response.json();
-        })
-        .then(data => {
-          console.log('Data loaded, processing grid...');
-          const grid = new Grid();
-          grid.name = 'Singapore';
-          grid.id = 3617140517; // Singapore's area ID
-          grid.isArea = true;
+      console.log('[Main] Initializing data worker to load Singapore data...');
+      
+      const loaderElement = document.getElementById('simple-loader');
+      if (loaderElement) {
+        loaderElement.classList.remove('hidden'); // Ensure it's visible at start
+      }
+      
+      this.dataWorker = new Worker(new URL('./lib/data.worker.js', import.meta.url), { type: 'module' });
 
-          if (data.elements) {
-            console.log('Processing elements:', data.elements.length);
-            const nodes = new Map();
-            data.elements.forEach(element => {
-              if (element.type === 'node') {
-                nodes.set(element.id, element);
-              }
-            });
-            grid.nodes = nodes;
-
-            const bounds = new BoundingBox();
-            nodes.forEach(node => {
-              bounds.addPoint(node.lon, node.lat);
-            });
-            grid.bounds = bounds;
-            console.log('Bounds calculated:', bounds);
-
-            const projector = geoMercator()
-              .center([bounds.cx, bounds.cy])
-              // Scale might need adjustment depending on the exact map library/usage
-              .scale(200000) // Adjusted scale, original was very large
-              .translate([0, 0]); // Center translation if needed later
-            grid.projector = projector;
-
-            let wayPointCount = 0;
-            const ways = [];
-            data.elements.forEach(element => {
-              if (element.type === 'way' && element.tags && element.tags.highway) {
-                ways.push(element);
-                wayPointCount += element.nodes.length;
-              }
-            });
-            grid.wayPointCount = wayPointCount;
-            grid.elements = ways;
-
-            console.log('Processed ways:', ways.length);
-            console.log('Total way points:', wayPointCount);
-            this.onGridLoaded(grid); // Call the existing method to handle the loaded grid
-          } else {
-            throw new Error('No elements found in the data');
-          }
-        })
-        .catch(error => {
-          console.error('Error loading Singapore data:', error);
-          this.loadError = `Error loading data: ${error.message}`;
-          // Handle the error appropriately, maybe show a message to the user
-          // For now, just setting placeFound to false (or keeping it false)
+      this.dataWorker.onmessage = (event) => {
+        const { type, gridData, error } = event.data;
+        if (type === 'SUCCESS') {
+          console.log('[Main] Received processed grid data from worker:', gridData);
+          this.onGridLoaded(gridData);
+        } else if (type === 'ERROR') {
+          console.error('[Main] Error from data worker:', error);
+          this.loadError = `Error loading data: ${error}`;
           this.placeFound = false;
-        });
+          if (loaderElement) {
+            loaderElement.classList.add('hidden'); // Hide on error
+          }
+        }
+      };
+
+      this.dataWorker.onerror = (error) => {
+        console.error('[Main] Worker error event:', error);
+        this.loadError = `Worker error: ${error.message}`;
+        this.placeFound = false;
+        if (loaderElement) {
+          loaderElement.classList.add('hidden'); // Hide on error
+        }
+      };
+
+      const initialGridProperties = {
+        name: 'Singapore',
+        id: 3617140517,
+        isArea: true
+      };
+
+      this.dataWorker.postMessage({ 
+        dataUrl: '/data/singapore/singapore_roads.json',
+        initialGridData: initialGridProperties
+      });
     },
-    onGridLoaded(grid) {
-      console.log('Grid loaded, initializing scene...');
-      if (grid.isArea) {
-        appState.set('areaId', grid.id);
+    onGridLoaded(dataFromWorker) {
+      console.log('[Main] Grid loaded, initializing scene with data:', dataFromWorker);
+
+      const finalGrid = new Grid();
+      finalGrid.name = dataFromWorker.name;
+      finalGrid.id = dataFromWorker.id;
+      finalGrid.isArea = dataFromWorker.isArea;
+      finalGrid.wayPointCount = dataFromWorker.wayPointCount;
+      finalGrid.elements = dataFromWorker.rawElements;
+      finalGrid.nodes = new Map(dataFromWorker.nodes);
+      
+      const boundsInstance = new BoundingBox();
+      boundsInstance.minX = dataFromWorker.bounds.minX;
+      boundsInstance.minY = dataFromWorker.bounds.minY;
+      boundsInstance.maxX = dataFromWorker.bounds.maxX;
+      boundsInstance.maxY = dataFromWorker.bounds.maxY;
+      finalGrid.bounds = boundsInstance;
+
+      if (finalGrid.isArea) {
+        appState.set('areaId', finalGrid.id);
         appState.unset('osm_id');
         appState.unset('bbox');
-      } else if (grid.bboxString) {
+      } else if (finalGrid.bboxString) {
         appState.unset('areaId');
-        appState.set('osm_id', grid.id);
-        appState.set('bbox', grid.bboxString);
+        appState.set('osm_id', finalGrid.id);
+        appState.set('bbox', dataFromWorker.bboxString);
       }
       this.placeFound = true;
-      this.name = grid.name.split(',')[0];
+      this.name = finalGrid.name.split(',')[0];
       let canvas = getCanvas();
       canvas.style.visibility = 'visible';
 
@@ -243,8 +240,14 @@ export default {
 
       let gridLayer = new GridLayer();
       gridLayer.id = 'lines';
-      gridLayer.setGrid(grid);
-      this.scene.add(gridLayer)
+      gridLayer.setGrid(finalGrid);
+      this.scene.add(gridLayer);
+
+      // Hide the loader now that the scene is set up
+      const loaderElement = document.getElementById('simple-loader');
+      if (loaderElement) {
+        loaderElement.classList.add('hidden');
+      }
     },
 
     startOver() {
@@ -273,7 +276,6 @@ export default {
     },
 
     updateLayers() {
-      // TODO: This method likely doesn't belong here
       let newLayers = [];
       let lastLayer = 0;
       let renderer = this.scene.getRenderer();
@@ -315,7 +317,6 @@ export default {
       this.backgroundColor = newBackground.toRgb();
       this.updateLayers()
     },
-    // TODO: I need two background methods?
     updateBackground() {
       this.setBackgroundColor(this.backgroundColor)
       this.zazzleLink = null;

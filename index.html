@@ -20,6 +20,7 @@
     <meta name="keywords" content="city roads visualization, roads, graph, visualization, anvaka" />
     <meta name="author" content="Andrei Kashcha">
     <title>Singapore Map</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
     <link href="https://fonts.googleapis.com/css?family=Roboto&display=swap" rel="stylesheet">
 
     <style>
@@ -53,8 +54,8 @@
         overflow: hidden;
       }
 
-      /* Styles for Lottie Container */
-      #lottie-container {
+      /* Simple Loader Styles */
+      #simple-loader {
         position: fixed;
         top: 0;
         left: 0;
@@ -65,19 +66,48 @@
         justify-content: center;
         align-items: center;
         z-index: 9999; /* Ensure it's on top */
+        opacity: 1;
         transition: opacity 0.5s ease-out;
-        opacity: 1; /* Start visible */
       }
 
-      #lottie-container.hidden {
+      #simple-loader.hidden {
         opacity: 0;
         pointer-events: none; /* Prevent interaction when hidden */
       }
 
-      #dotlottie-canvas {
-        width: 300px; /* As per your instructions */
-        height: 300px; /* As per your instructions */
+      #simple-loader .dot {
+        width: 12px;
+        height: 12px;
+        margin: 0 6px;
+        background-color: #333; /* Dark grey/black for dots */
+        border-radius: 50%;
+        animation: pulse 1.4s infinite ease-in-out both;
       }
+
+      #simple-loader .dot:nth-child(1) {
+        animation-delay: -0.32s;
+      }
+
+      #simple-loader .dot:nth-child(2) {
+        animation-delay: -0.16s;
+      }
+
+      @keyframes pulse {
+        0%, 80%, 100% {
+          transform: scale(0.5);
+          opacity: 0.5;
+        }
+        40% {
+          transform: scale(1.0);
+          opacity: 1;
+        }
+      }
+      /* End Simple Loader Styles */
+
+      /* Styles for Lottie Container - REMOVED */
+      /* #lottie-container { ... } */
+      /* #lottie-container.hidden { ... } */
+      /* #dotlottie-canvas { ... } */
     </style>
 
     <style>
@@ -91,13 +121,12 @@
 
   </head>
   <body>
-    <!-- REMOVED old loader container -->
-    <!-- <div id="loader-container"> ... </div> -->
-
-    <!-- ADDED Lottie container and canvas -->
-    <div id="lottie-container">
-        <canvas id="dotlottie-canvas"></canvas>
+    <div id="simple-loader">
+      <div class="dot"></div>
+      <div class="dot"></div>
+      <div class="dot"></div>
     </div>
+    <!-- REMOVED Lottie container and canvas -->
 
     <canvas id='canvas'></canvas>
     <div id="host"></div>

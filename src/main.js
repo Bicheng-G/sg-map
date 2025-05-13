@@ -6,10 +6,10 @@ import {isWebGLEnabled} from 'w-gl';
 import App from './App.vue';
 import NoWebGL from './NoWebGL.vue';
 import Query from './lib/Query.js';
-import { initLoadingAnimation } from './loading.js'; // Import the loader function
+// import { initLoadingAnimation } from './loading.js'; // Import the loader function
 
 // Initialize the loading animation
-initLoadingAnimation();
+// initLoadingAnimation();
 
 // const wgl = require('w-gl');
 
